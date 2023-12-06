@@ -215,15 +215,3 @@ Card 201: 55 53 33 19  1 70 17 61  2 72 | 62  6 30 86 45 71 46 33 15 90 73 37 18
 Card 202:  5 47 96 53 54 14 77 29 12  3 | 26 71 91 86 59 70 78  8 83 92 35 64  9 79 84 34 36 93 90 40 16 44 51  6  4
 `.trim();
 }
-
-export function getTestInput2() {
-	return `
-
-`.trim();
-}
-
-export function getInput2() {
-	return `
-
-`.trim();
-}
