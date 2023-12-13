@@ -26,19 +26,9 @@ interface CustomIterator<T> extends Iterable<T> {
 	map<U>(callback: (value: T) => U): CustomIterator<U>;
 	filter(callback: (value: T) => boolean): CustomIterator<T>;
 	reduce<U>(
-		callback: (
-			accumulator: U,
-			current: T,
-			index: number,
-			generator: CustomIterator<T>
-		) => U,
+		callback: (accumulator: U, current: T, index: number, generator: CustomIterator<T>) => U,
 		initialValue: U,
-		cancelCondition: (
-			accumulator: U,
-			current: T,
-			index: number,
-			generator: CustomIterator<T>
-		) => boolean
+		cancelCondition: (accumulator: U, current: T, index: number, generator: CustomIterator<T>) => boolean
 	): U;
 	next(): T | undefined;
 }
@@ -73,19 +63,9 @@ class CustomIteratorWrapper<T> implements CustomIterator<T> {
 	}
 
 	reduce<U>(
-		callback: (
-			accumulator: U,
-			current: T,
-			index: number,
-			generator: CustomIterator<T>
-		) => U,
+		callback: (accumulator: U, current: T, index: number, generator: CustomIterator<T>) => U,
 		initialValue: U,
-		cancelCondition: (
-			accumulator: U,
-			current: T,
-			index: number,
-			generator: CustomIterator<T>
-		) => boolean
+		cancelCondition?: (accumulator: U, current: T, index: number, generator: CustomIterator<T>) => boolean
 	): U {
 		let accumulator = initialValue;
 		let index = 0;
@@ -94,7 +74,7 @@ class CustomIteratorWrapper<T> implements CustomIterator<T> {
 		let result = generator.next();
 
 		while (!result.done) {
-			if (cancelCondition(accumulator, result.value, index, this)) {
+			if (cancelCondition && cancelCondition(accumulator, result.value, index, this)) {
 				break;
 			}
 			accumulator = callback(accumulator, result.value, index, this);
@@ -113,34 +93,33 @@ class CustomIteratorWrapper<T> implements CustomIterator<T> {
 
 	[Symbol.iterator](): Iterator<T> {
 		const iterator = this.source[Symbol.iterator]();
-		let result = iterator.next();
 
 		return {
 			next: () => {
-				const value = result.value;
+				const result = iterator.next();
 				if (result.done) {
-					result = iterator.next();
+					(iterator as any)[Symbol.iterator] = () => this[Symbol.iterator]();
 				}
-				return { value, done: false };
+				return result;
 			},
 		};
 	}
 }
 
-export function iterator<T>(source: Iterable<T>): CustomIterator<T> {
+export function iterator<T>(source: Iterable<T>): CustomIterator<T>;
+export function iterator<T>(source: (index: number) => T): CustomIterator<T>;
+export function iterator<T>(source: Iterable<T> | ((index: number) => T)): CustomIterator<T> {
+	if (typeof source == "function") {
+		const generator = function* () {
+			let index = 0;
+			while (true) {
+				yield source(index);
+				index++;
+			}
+		};
+		return new CustomIteratorWrapper<T>(generator());
+	}
 	return new CustomIteratorWrapper<T>(source);
-}
-
-export function infiniteIterator<T>(arr: T[]): CustomIterator<T> {
-	const infiniteIterator = function* () {
-		let index = 0;
-		while (true) {
-			yield arr[index];
-			index = (index + 1) % arr.length;
-		}
-	};
-
-	return new CustomIteratorWrapper<T>(infiniteIterator());
 }
 
 export type MatchArr = Array<string> & {
